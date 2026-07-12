@@ -1,14 +1,9 @@
 package me.bedtwL.oss;
 
+import me.bedtwL.oss.utils.BanEntry;
+import me.bedtwL.oss.utils.DataUtils;
 import net.md_5.bungee.api.CommandSender;
-import net.md_5.bungee.api.ProxyServer;
-import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Command;
-import net.md_5.bungee.config.ConfigurationProvider;
-import net.md_5.bungee.config.YamlConfiguration;
-
-import java.io.IOException;
-import java.util.ArrayList;
 
 public class UnbanCommand extends Command {
     public UnbanCommand(String name) {
@@ -21,14 +16,14 @@ public class UnbanCommand extends Command {
             sender.sendMessage("nothing here!");
             return;
         }
-        ArrayList<String> a= (ArrayList<String>) LazyBanOSS.getInstance().config.getList("banned",new ArrayList<String>());
-        a.remove(args[0]);
-        LazyBanOSS.getInstance().config.set("banned",a);
-        try {
-            ConfigurationProvider.getProvider(YamlConfiguration.class).save(LazyBanOSS.getInstance().config, LazyBanOSS.getInstance().configFile);
-        } catch (IOException e) {
-            e.printStackTrace();
+        //TODO: mojang api req player data
+        if (DataUtils.IsBanned(args[0])) {
+            BanEntry e= DataUtils.getBan(args[0]);
+            e.setBanEnd(0);
+            DataUtils.saveBan(e);
+            sender.sendMessage("§cUnbanned!");
         }
-        sender.sendMessage("unbanned");
+        else
+            sender.sendMessage("§cPlayer not found in database!");
     }
 }
