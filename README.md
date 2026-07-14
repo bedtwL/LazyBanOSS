@@ -1,4 +1,4 @@
-一個犯懶的腐竹寫出的簡單Bungeecord plugin, Feel free to make a pr and make this better
+一個犯懶的腐竹寫出的簡單Velocity plugin, Feel free to make a pr and make this better
 
 不需要任何設定即可使用
 
