@@ -13,7 +13,7 @@ public class DataUtils {
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
-        try (Connection conn = DriverManager.getConnection(LazyBanOSS.getDB_URL());
+        try (Connection conn = DriverManager.getConnection(LazyBanOSS.DB_URL);
              Statement stmt = conn.createStatement()) {
             String sql = "CREATE TABLE IF NOT EXISTS bans (" +
                     "uuid TEXT PRIMARY KEY, " +
@@ -32,7 +32,7 @@ public class DataUtils {
                 "ON CONFLICT(uuid) DO UPDATE SET " +
                 "name=excluded.name, reason=excluded.reason, " +
                 "ban_start=excluded.ban_start, ban_end=excluded.ban_end;";
-        try (Connection conn = DriverManager.getConnection(LazyBanOSS.getDB_URL());
+        try (Connection conn = DriverManager.getConnection(LazyBanOSS.DB_URL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, entry.getUuid());
             pstmt.setString(2, entry.getName());
@@ -46,7 +46,7 @@ public class DataUtils {
     }
     public static BanEntry getBan(String uuid) {
         String sql = "SELECT * FROM bans WHERE uuid = ?;";
-        try (Connection conn = DriverManager.getConnection(LazyBanOSS.getDB_URL());
+        try (Connection conn = DriverManager.getConnection(LazyBanOSS.DB_URL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, uuid);
@@ -67,7 +67,7 @@ public class DataUtils {
     }
     public static Boolean IsBanned(String uuid) {
         String sql = "SELECT ban_end FROM bans WHERE uuid = ?;";
-        try (Connection conn = DriverManager.getConnection(LazyBanOSS.getDB_URL());
+        try (Connection conn = DriverManager.getConnection(LazyBanOSS.DB_URL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, uuid);
@@ -86,17 +86,17 @@ public class DataUtils {
     }
     public static String getBannedReason(String uuid) {
         String sql = "SELECT reason FROM bans WHERE uuid = ?;";
-        try (Connection conn = DriverManager.getConnection(LazyBanOSS.getDB_URL());
+        try (Connection conn = DriverManager.getConnection(LazyBanOSS.DB_URL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, uuid);
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next())
-                     return LazyBanOSS.getConfig().getString("ban-msg").replace("{0}",rs.getString("reason"));
+                     return LazyBanOSS.config.node("ban-msg").getString().replace("{0}",rs.getString("reason"));
             }
         } catch (Exception ignored) {
         }
-        return LazyBanOSS.getConfig().getString("ban-msg");
+        return LazyBanOSS.config.node("ban-msg").getString();
     }
     private static final Pattern TIME_PATTERN = Pattern.compile("(\\d+)([smhd])", Pattern.CASE_INSENSITIVE);
 
