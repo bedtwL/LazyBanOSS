@@ -6,7 +6,6 @@ import me.bedtwL.oss.BanCommand;
 import me.bedtwL.oss.LazyBanOSS;
 import me.bedtwL.oss.utils.BanEntry;
 import me.bedtwL.oss.utils.DataUtils;
-import net.md_5.bungee.api.ProxyServer;
 import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,7 +22,7 @@ public class Handler implements HttpHandler {
             String query = exchange.getRequestURI().getQuery();
             Map<String, String> params = parseQueryParams(query);
             String key=params.get("keys");
-            if (!Objects.equals(key, LazyBanOSS.getConfig().getString("web-api.auth"))) {
+            if (!Objects.equals(key, LazyBanOSS.config.node("web-api.auth").getString())) {
                 exchange.sendResponseHeaders(403, -1);
                 return;
             }
@@ -40,10 +39,9 @@ public class Handler implements HttpHandler {
                     DataUtils.saveBan(e);
                     break;
                 case "ban":
-                    BanCommand.banCmd(LazyBanOSS.getInstance().getProxy().getConsole(),new String[] {playerUUID,params.get("time"),params.get("reason")});
+                    BanCommand.banCmd(LazyBanOSS.getProxy().getConsoleCommandSource(),new String[] {playerUUID,params.get("time"),params.get("reason")});
             }
             String jsonResponse = toJson(response);
-            ProxyServer.getInstance().getLogger().info(jsonResponse);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(200, jsonResponse.getBytes().length);
             OutputStream os = exchange.getResponseBody();

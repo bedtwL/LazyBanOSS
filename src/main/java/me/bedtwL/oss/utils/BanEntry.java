@@ -14,7 +14,7 @@ public class BanEntry {
     public BanEntry(String uuid, String name, long banEnd) {
         this.uuid = uuid;
         this.name = name;
-        this.reason = LazyBanOSS.getConfig().getString("def-ban-reason");
+        this.reason = LazyBanOSS.config.node("def-ban-reason").getString();
         this.banStart = System.currentTimeMillis()/1000;
         this.banEnd = banEnd;
     }
@@ -33,6 +33,6 @@ public class BanEntry {
         this.banEnd = banEnd;
     }
     public String getReasonCombined() {
-        return LazyBanOSS.getConfig().getString("ban-msg").replace("{0}",reason);
+        return LazyBanOSS.config.node("ban-msg").getString().replace("{0}",reason);
     }
 }

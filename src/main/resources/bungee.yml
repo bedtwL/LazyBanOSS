@@ -1,4 +1,0 @@
-name: LazyBanOSS
-version: '${project.version}'
-main: me.bedtwL.oss.LazyBanOSS
-author: "bedtwL"
