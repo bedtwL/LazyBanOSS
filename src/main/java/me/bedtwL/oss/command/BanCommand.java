@@ -71,7 +71,7 @@ public final class BanCommand {
                     UUID uuid1 = UUID.fromString(arg1);
                     Optional<JsonObject> profile = MojangApi.getProfile(uuid1);
                     if (profile.isPresent()) {
-                        uuid = profile.get().get("id").getAsString();
+                        uuid = String.valueOf(MojangApi.parseUuid(profile.get().get("id").getAsString()));
                         name = profile.get().get("name").getAsString();
                     }
                     else {
@@ -82,7 +82,7 @@ public final class BanCommand {
                     Optional<JsonObject> profile = MojangApi.getProfileByUsername(arg1);
                     if (profile.isPresent()) {
                         name = profile.get().get("name").getAsString();
-                        uuid = profile.get().get("id").getAsString();
+                        uuid = String.valueOf(MojangApi.parseUuid(profile.get().get("id").getAsString()));
                     } else {
                         sender.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize("§cPlayer not found!"));
                         return;
