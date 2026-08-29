@@ -2,10 +2,11 @@ package me.bedtwL.oss.api;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
-import me.bedtwL.oss.BanCommand;
+import me.bedtwL.oss.command.BanCommand;
 import me.bedtwL.oss.LazyBanOSS;
-import me.bedtwL.oss.utils.BanEntry;
-import me.bedtwL.oss.utils.DataUtils;
+import me.bedtwL.oss.util.BanEntry;
+import me.bedtwL.oss.util.DataUtils;
+
 import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
@@ -21,7 +22,7 @@ public class Handler implements HttpHandler {
             }
             String query = exchange.getRequestURI().getQuery();
             Map<String, String> params = parseQueryParams(query);
-            String key=params.get("keys");
+            String key = params.get("keys");
             if (!Objects.equals(key, LazyBanOSS.config.node("web-api.auth").getString())) {
                 exchange.sendResponseHeaders(403, -1);
                 return;
@@ -29,17 +30,17 @@ public class Handler implements HttpHandler {
             String playerUUID = params.get("player");
             String action = params.get("action");
             Map<String, Object> response = new HashMap<>();
-            if (playerUUID == null || action==null) {
-                response.put("error","Query args missing!");
+            if (playerUUID == null || action == null) {
+                response.put("error", "Query args missing!");
             }
-            switch (action.toString()) {
+            switch (action) {
                 case "unban":
-                    BanEntry e= DataUtils.getBan(playerUUID);
+                    BanEntry e = DataUtils.getBan(playerUUID);
                     e.setBanEnd(0);
                     DataUtils.saveBan(e);
                     break;
                 case "ban":
-                    BanCommand.banCmd(LazyBanOSS.getProxy().getConsoleCommandSource(),new String[] {playerUUID,params.get("time"),params.get("reason")});
+                    BanCommand.banCmd(LazyBanOSS.getProxy().getConsoleCommandSource(), new String[]{playerUUID, params.get("time"), params.get("reason")});
             }
             String jsonResponse = toJson(response);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
@@ -68,8 +69,7 @@ public class Handler implements HttpHandler {
 
     private String toJson(Map<String, Object> map) {
         StringBuilder json = new StringBuilder("{");
-        map.forEach((key, value) -> json.append("\"").append(key).append("\":")
-                .append(value instanceof String ? "\"" + value + "\"" : value).append(","));
+        map.forEach((key, value) -> json.append("\"").append(key).append("\":").append(value instanceof String ? "\"" + value + "\"" : value).append(","));
         if (json.charAt(json.length() - 1) == ',') {
             json.setLength(json.length() - 1);
         }

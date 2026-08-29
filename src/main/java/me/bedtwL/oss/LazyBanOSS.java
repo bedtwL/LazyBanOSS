@@ -5,18 +5,23 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.tree.LiteralCommandNode;
-import com.velocitypowered.api.command.*;
+import com.velocitypowered.api.command.BrigadierCommand;
+import com.velocitypowered.api.command.CommandManager;
+import com.velocitypowered.api.command.CommandMeta;
+import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.LoginEvent;
-import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
+import lombok.Data;
 import lombok.Getter;
 import me.bedtwL.oss.api.WebAPI;
-import me.bedtwL.oss.utils.BanEntry;
-import me.bedtwL.oss.utils.DataUtils;
+import me.bedtwL.oss.command.BanCommand;
+import me.bedtwL.oss.command.UnbanCommand;
+import me.bedtwL.oss.util.BanEntry;
+import me.bedtwL.oss.util.DataUtils;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.spongepowered.configurate.CommentedConfigurationNode;
 import org.spongepowered.configurate.ConfigurateException;
@@ -30,19 +35,19 @@ import java.util.logging.Logger;
 @Plugin(id = "lazybanoss", name = "LazyBanOSS", version = "1.0.0",
         url = "https://bedtwL.com", description = "Just a simple ban plugin", authors = "bedtwL")
 public final class LazyBanOSS {
+    public static CommentedConfigurationNode config;
+    @Getter
+    public static String DB_URL;
     @Getter
     private static LazyBanOSS instance;
     @Getter
     private static ProxyServer proxy;
     @Getter
+    private static File configFile;
+    @Getter
     private final Logger logger;
     @Getter
     private final Path dataDirectory;
-    @Getter
-    private static File configFile;
-    public static CommentedConfigurationNode config;
-    @Getter
-    public static String DB_URL;
 
     @Inject
     public LazyBanOSS(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
@@ -83,13 +88,14 @@ public final class LazyBanOSS {
                 e.printStackTrace();
             }
             if (config.node("web-api", "enabled").getBoolean()) {
-                new WebAPI().startServer(config.node("web-api","port").getInt(5029));
+                new WebAPI().startServer(config.node("web-api", "port").getInt(5029));
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
         CommandManager commandManager = server.getCommandManager();
         BrigadierCommand banCommand = BanCommand.create();
+        BrigadierCommand unbanCommand = UnbanCommand.create();
         CommandMeta banMeta = commandManager.metaBuilder("lban")
                 .aliases("ban")
                 .plugin(this)
@@ -98,32 +104,14 @@ public final class LazyBanOSS {
                 .aliases("unban")
                 .plugin(this)
                 .build();
-
-        LiteralCommandNode<CommandSource> unbanNode = LiteralArgumentBuilder.<CommandSource>literal("lunban")
-                .requires(source -> source.hasPermission("bedtwL.oss.lazyban.unban"))
-                .then(RequiredArgumentBuilder.<CommandSource, String>argument("target", StringArgumentType.word())
-                        .executes(context -> {
-                            CommandSource sender = context.getSource();
-                            String target = StringArgumentType.getString(context, "target");
-                            if (DataUtils.IsBanned(target)) {
-                                BanEntry e = DataUtils.getBan(target);
-                                e.setBanEnd(0);
-                                DataUtils.saveBan(e);
-                                sender.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize("&cUnbanned!"));
-                            } else {
-                                sender.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize("&cPlayer not found in database!"));
-                            }
-                            return 1;
-                        })
-                )
-                .build();
         commandManager.register(banMeta, banCommand);
-        commandManager.register(unbanMeta, new BrigadierCommand(unbanNode));
+        commandManager.register(unbanMeta, unbanCommand);
     }
+
     @Subscribe
     public void onProxyInitialization(ProxyInitializeEvent event) {
         proxy.getEventManager().register(this, LoginEvent.class, e -> {
-            if (DataUtils.IsBanned(e.getPlayer().getUniqueId().toString()))
+            if (DataUtils.isBanned(e.getPlayer().getUniqueId().toString()))
                 e.getPlayer().disconnect(LegacyComponentSerializer.legacyAmpersand().deserialize(DataUtils.getBannedReason(e.getPlayer().getUniqueId().toString())));
         });
     }

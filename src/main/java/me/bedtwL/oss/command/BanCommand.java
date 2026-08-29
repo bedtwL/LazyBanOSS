@@ -1,0 +1,141 @@
+package me.bedtwL.oss.command;
+
+import com.google.gson.JsonObject;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.RequiredArgumentBuilder;
+import com.mojang.brigadier.tree.LiteralCommandNode;
+import com.velocitypowered.api.command.BrigadierCommand;
+import com.velocitypowered.api.command.CommandSource;
+import com.velocitypowered.api.command.VelocityBrigadierMessage;
+import com.velocitypowered.api.proxy.Player;
+import me.bedtwL.oss.LazyBanOSS;
+import me.bedtwL.oss.util.BanEntry;
+import me.bedtwL.oss.util.DataUtils;
+import me.bedtwL.oss.util.MojangApi;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+
+import java.util.Arrays;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+
+public final class BanCommand {
+
+    public static BrigadierCommand create() {
+        LiteralCommandNode<CommandSource> banNode = LiteralArgumentBuilder.<CommandSource>literal("lban")
+                .requires(source -> source.hasPermission("bedtwL.oss.lazyban.ban"))
+                .executes(context -> {
+                    CommandSource sender = context.getSource();
+                    sender.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize("&c/lban <player|uuid> [time] [reason]"));
+                    sender.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize("&c#if time=-1 or empty then it will be banned forever"));
+                    return 1;
+                })
+                .then(RequiredArgumentBuilder.<CommandSource, String>argument("args", StringArgumentType.greedyString())
+                        .suggests((ctx, builder) -> {
+                            LazyBanOSS.getProxy().getAllPlayers().forEach(player -> builder.suggest(
+                                    player.getUsername(),
+                                    VelocityBrigadierMessage.tooltip(MiniMessage.miniMessage().deserialize(player.getUsername()))
+                            ));
+                            return builder.buildFuture();
+                        })
+                        .executes(context -> {
+                            CommandSource sender = context.getSource();
+                            String rawArgs = StringArgumentType.getString(context, "args");
+                            String[] args = rawArgs.split(" ");
+                            banCmd(sender, args);
+                            return 1;
+                        })
+                )
+                .build();
+        return new BrigadierCommand(banNode);
+    }
+
+    public static void banCmd(CommandSource sender, String[] args) {
+        LazyBanOSS.getProxy().getScheduler().buildTask(LazyBanOSS.getInstance(), () -> {
+            BanEntry banEntry;
+            Player p = null;
+            long sec;
+            String name;
+            String arg1 = args[0];
+            String uuid;
+            Optional<Player> optionalPlayer = LazyBanOSS.getProxy().getPlayer(args[0]);
+            if (optionalPlayer.isPresent()) {
+                Player player = optionalPlayer.get();
+                name = player.getUsername();
+                uuid = player.getUniqueId().toString();
+                p = player;
+            } else {
+                try {
+                    UUID uuid1 = UUID.fromString(arg1);
+                    Optional<JsonObject> profile = MojangApi.getProfile(uuid1);
+                    if (profile.isPresent()) {
+                        uuid = String.valueOf(MojangApi.parseUuid(profile.get().get("id").getAsString()));
+                        name = profile.get().get("name").getAsString();
+                    }
+                    else {
+                        sender.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize("§cPlayer not found!"));
+                        return;
+                    }
+                } catch (IllegalArgumentException e) {
+                    Optional<JsonObject> profile = MojangApi.getProfileByUsername(arg1);
+                    if (profile.isPresent()) {
+                        name = profile.get().get("name").getAsString();
+                        uuid = String.valueOf(MojangApi.parseUuid(profile.get().get("id").getAsString()));
+                    } else {
+                        sender.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize("§cPlayer not found!"));
+                        return;
+                    }
+                }
+            }
+
+            if (args.length > 1) {
+                if (args[1] != null) {
+                    if (!Objects.equals(args[1], "-1")) {
+                        sec = DataUtils.parseToSeconds(args[1]);
+                        if (sec == -1) {
+                            sender.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize("Correct format: 5s, 10m, 2h, 14d, 1mo, 1y"));
+                            return;
+                        }
+                    } else sec = -1;
+                } else sec = -1;
+
+                if (args.length > 2) {
+                    if (args[2] != null) {
+                        String reason = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
+                        if (sec == -1) {
+                            banEntry = new BanEntry(uuid, name, reason, -1);
+                            sender.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize("§cBanned §f" + name + "§c with reason: " + reason));
+                        } else {
+                            banEntry = new BanEntry(uuid, name, reason, System.currentTimeMillis() / 1000 + sec);
+                            sender.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize("§cBanned §f" + name + "§c " + args[1] + " and with reason: " + reason));
+                        }
+                    } else {
+                        if (sec == -1) {
+                            banEntry = new BanEntry(uuid, name, -1);
+                            sender.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize("§cBanned §f" + name + "§c Forever!"));
+                        } else {
+                            banEntry = new BanEntry(uuid, name, System.currentTimeMillis() / 1000 + sec);
+                            sender.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize("§cBanned §f" + name + "§c " + args[1] + "!"));
+                        }
+                    }
+                } else {
+                    if (sec == -1) {
+                        banEntry = new BanEntry(uuid, name, -1);
+                        sender.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize("§cBanned §f" + name + "§c Forever!"));
+                    } else {
+                        banEntry = new BanEntry(uuid, name, System.currentTimeMillis() / 1000 + sec);
+                        sender.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize("§cBanned §f" + name + "§c " + args[1] + "!"));
+                    }
+                }
+            } else {
+                banEntry = new BanEntry(uuid, name, -1);
+                sender.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize("§cBanned §f" + name + "§c Forever!"));
+            }
+            DataUtils.saveBan(banEntry);
+            if (p != null)
+                p.disconnect(LegacyComponentSerializer.legacyAmpersand().deserialize(banEntry.getReasonCombined()));
+        }).schedule();
+    }
+}
